@@ -1,7 +1,4 @@
-
-
-
-# 🎬 AI Movie Recommender System
+# 🎬 AI Movie Recommendation System
 
 This project is a content-based movie recommendation system built using Python, pandas, and scikit-learn. It analyzes movie metadata to suggest similar movies based on genres, keywords, cast, and director information.
 
