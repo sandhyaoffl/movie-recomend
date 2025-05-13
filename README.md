@@ -119,6 +119,3 @@ Contributions are welcome! If you would like to improve or contribute to this pr
 
 This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
 
----
-
-You can modify this README as per your project needs. For example, if you're using a different dataset or have additional functionality, you can update the instructions accordingly.
