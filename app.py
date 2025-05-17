@@ -5,63 +5,77 @@ import difflib
 import streamlit as st
 from io import StringIO
 
-# Embedded CSV content
-csv_data = """title,genres,keywords,cast,director
-The Matrix,Action,Sci-fi,Keanu Reeves,Lana Wachowski
-Inception,Action,Sci-fi,Leonardo DiCaprio,Christopher Nolan
+# Embedded dataset
+csv_data = """
+title,genres,keywords,cast,director
+The Matrix,Action,Sci-Fi,Keanu Reeves,Lana Wachowski
+Inception,Action,Thriller,Leonardo DiCaprio,Christopher Nolan
 Interstellar,Adventure,Space,Matthew McConaughey,Christopher Nolan
-...
-"""  # Replace with your actual data
+The Dark Knight,Action,Hero,Christian Bale,Christopher Nolan
+Titanic,Romance,Ship,Leonardo DiCaprio,James Cameron
+Avatar,Adventure,Pandora,Sam Worthington,James Cameron
+Gladiator,Action,Ancient,Russell Crowe,Ridley Scott
+The Prestige,Drama,Magic,Hugh Jackman,Christopher Nolan
+The Lion King,Animation,Animals,Matthew Broderick,Roger Allers
+Frozen,Animation,Ice,Idina Menzel,Chris Buck
+"""
 
-# Load CSV from string
-df_chunk = pd.read_csv(StringIO(csv_data))
+# Load data
+df = pd.read_csv(StringIO(csv_data.strip()))
 
-# Preprocessing
+# Clean and combine features
 def clean_data(x):
     return x.lower().strip().replace(" ", "") if isinstance(x, str) else ""
 
-required_features = ["genres", "keywords", "cast", "director", "title"]
-for feature in required_features:
-    if feature not in df_chunk.columns:
-        df_chunk[feature] = ""
-    df_chunk[feature] = df_chunk[feature].fillna("").apply(clean_data)
+for col in ["genres", "keywords", "cast", "director", "title"]:
+    df[col] = df[col].fillna("").apply(clean_data)
 
-df_chunk["combined_features"] = df_chunk["genres"] + " " + df_chunk["keywords"] + " " + df_chunk["cast"] + " " + df_chunk["director"]
+df["combined_features"] = df["genres"] + " " + df["keywords"] + " " + df["cast"] + " " + df["director"]
 
-# TF-IDF Vectorizer
+# TF-IDF
 tfidf = TfidfVectorizer(stop_words="english")
-tfidf_matrix = tfidf.fit_transform(df_chunk["combined_features"])
+tfidf_matrix = tfidf.fit_transform(df["combined_features"])
 cosine_sim = linear_kernel(tfidf_matrix, tfidf_matrix)
 
-# Reverse index
-df_chunk = df_chunk.reset_index()
-indices = pd.Series(df_chunk.index, index=df_chunk["title"].str.lower().str.strip()).drop_duplicates()
+# Indexing
+df = df.reset_index()
+indices = pd.Series(df.index, index=df["title"].str.lower().str.strip()).drop_duplicates()
 
+# Functions
 def get_closest_match(title):
-    possible_matches = df_chunk["title"].str.lower().str.strip().tolist()
-    matches = difflib.get_close_matches(title.lower().strip(), possible_matches, n=1, cutoff=0.6)
+    possible_titles = df["title"].str.lower().str.strip().tolist()
+    matches = difflib.get_close_matches(title.lower().strip(), possible_titles, n=1, cutoff=0.6)
     return matches[0] if matches else None
 
 def get_recommendations(title):
     matched_title = get_closest_match(title)
     if not matched_title:
-        return f"'{title}' not found in the dataset."
-
+        return None, f"No close match found for '{title}'"
     idx = indices[matched_title]
-    sim_scores = list(enumerate(cosine_sim[idx]))
-    sim_scores = sorted(sim_scores, key=lambda x: x[1], reverse=True)[1:11]
+    sim_scores = sorted(enumerate(cosine_sim[idx]), key=lambda x: x[1], reverse=True)[1:11]
     movie_indices = [i[0] for i in sim_scores]
-    return df_chunk["title"].iloc[movie_indices]
+    return df["title"].iloc[movie_indices], None
 
 # Streamlit UI
 st.title("AI Movie Recommender System")
-movie_name = st.text_input("Enter a movie title:")
 
-if movie_name:
-    recommendations = get_recommendations(movie_name)
-    st.subheader("Top 10 Recommendations:")
-    if isinstance(recommendations, str):
-        st.write(recommendations)
+user_input = st.text_input("Enter a movie title")
+
+col1, col2 = st.columns(2)
+search_clicked = col1.button("Get Recommendations")
+clear_clicked = col2.button("Clear")
+
+if clear_clicked:
+    st.experimental_rerun()
+
+if search_clicked:
+    if user_input:
+        results, error = get_recommendations(user_input)
+        if error:
+            st.error(error)
+        else:
+            st.subheader("Top 10 Recommended Movies:")
+            for i, title in enumerate(results, 1):
+                st.write(f"{i}. {title}")
     else:
-        for i, title in enumerate(recommendations, 1):
-            st.write(f"{i}. {title}")
+        st.warning("Please enter a movie title before clicking search.")
