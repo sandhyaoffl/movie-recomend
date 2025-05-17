@@ -1,4 +1,3 @@
-
 import pandas as pd
 from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn.metrics.pairwise import linear_kernel
@@ -8,8 +7,8 @@ import streamlit as st
 # Load a manageable subset of the dataset
 @st.cache_data
 def load_data():
-    chunk_size = 1000
-    df_chunk = pd.read_csv("movies1.csv", nrows=chunk_size)
+    # Use the uploaded file name
+    df_chunk = pd.read_csv("movies1.csv", nrows=1000)
 
     def clean_data(x):
         return x.lower().strip().replace(" ", "") if isinstance(x, str) else ""
@@ -35,7 +34,7 @@ def build_model(df_chunk):
     tfidf = TfidfVectorizer(stop_words="english")
     tfidf_matrix = tfidf.fit_transform(df_chunk["combined_features"])
     cosine_sim = linear_kernel(tfidf_matrix, tfidf_matrix)
-    return tfidf, cosine_sim
+    return cosine_sim
 
 # Closest title match
 def get_closest_match(title, titles_list):
@@ -46,7 +45,7 @@ def get_closest_match(title, titles_list):
 def get_recommendations(title, df_chunk, cosine_sim):
     titles = df_chunk["title"].str.lower().str.strip().tolist()
     matched_title = get_closest_match(title, titles)
-
+    
     if not matched_title:
         return None, f"No match found for '{title}'. Please try another title."
 
@@ -55,7 +54,7 @@ def get_recommendations(title, df_chunk, cosine_sim):
     sim_scores = list(enumerate(cosine_sim[idx]))
     sim_scores = sorted(sim_scores, key=lambda x: x[1], reverse=True)[1:11]
     movie_indices = [i[0] for i in sim_scores]
-
+    
     return df_chunk["title"].iloc[movie_indices].tolist(), None
 
 # Streamlit App
@@ -63,7 +62,7 @@ def main():
     st.title("AI Movie Recommender System")
 
     df_chunk = load_data()
-    _, cosine_sim = build_model(df_chunk)
+    cosine_sim = build_model(df_chunk)
 
     user_input = st.text_input("Enter a movie title to get recommendations:")
 
